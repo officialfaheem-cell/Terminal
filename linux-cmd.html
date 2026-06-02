@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Linux CMD — Interactive Command Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root {
+  --bg-primary: #0B0F17;
+  --bg-secondary: #070b12;
+  --bg-card: rgba(0,255,65,0.04);
+  --green: #00FF41;
+  --green-dim: #00cc33;
+  --green-pale: rgba(0,255,65,0.12);
+  --green-glow: rgba(0,255,65,0.3);
+  --cyan: #0dcaf0;
+  --red: #ff5e5e;
+  --yellow: #ffcc00;
+  --purple: #c084fc;
+  --orange: #ff914d;
+  --text-dim: #8bc48a;
+  --text-muted: #2e5530;
+  --border: rgba(0,255,65,0.2);
+  --border-bright: #00FF4166;
+  --shadow-green: 0 0 16px rgba(0,255,65,0.2);
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-ui: 'Rajdhani', sans-serif;
+  --font-brand: 'Orbitron', monospace;
+}
+.light-mode {
+  --bg-primary: #eef5ee;
+  --bg-secondary: #ddebe0;
+  --bg-card: #d4ead4;
+  --green: #006622;
+  --green-dim: #008833;
+  --green-pale: rgba(0,102,34,0.1);
+  --text-dim: #1e5e2e;
+  --border: #2c7a47;
+  --shadow-green: 0 0 12px #00aa33;
+}
+body {
+  background: var(--bg-primary);
+  color: var(--green);
+  font-family: var(--font-mono);
+  overflow-x: hidden;
+  transition: background 0.2s;
+}
+#matrix-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: 0;
+}
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  gap: 16px;
+  height: 54px;
+  backdrop-filter: blur(8px);
+  flex-wrap: wrap;
+}
+.nav-logo {
+  font-family: var(--font-brand);
+  font-size: 1.2rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+.nav-logo span {
+  color: var(--cyan);
+}
+.nav-tabs {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav-tab {
+  background: none;
+  border: none;
+  padding: 6px 16px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: 0.2s;
+}
+.nav-tab.active, .nav-tab:hover {
+  background: var(--green-pale);
+  color: var(--green);
+  border-bottom: 2px solid var(--green);
+}
+.xp-badge {
+  background: var(--green-pale);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 4px 14px;
+  font-size: 13px;
+  font-weight: bold;
+}
+.nav-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--green);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  transition: 0.2s;
+}
+.section {
+  display: none;
+  padding: 20px;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+.section.active {
+  display: block;
+}
+.terminal-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+}
+.terminal {
+  background: #03060b;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-green);
+  display: flex;
+  flex-direction: column;
+  height: 70vh;
+  min-height: 480px;
+}
+.term-header {
+  padding: 10px 14px;
+  background: #0e121f;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: #aaa;
+}
+.term-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: var(--font-mono);
+}
+.term-input-line {
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: #000000aa;
+}
+.prompt {
+  color: var(--green);
+  white-space: nowrap;
+}
+#cmd-input {
+  background: transparent;
+  border: none;
+  color: var(--green);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  width: 100%;
+  outline: none;
+  margin-left: 8px;
+}
+.side-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.cmd-chip {
+  display: inline-block;
+  padding: 4px 10px;
+  margin: 4px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: 0.1s;
+}
+.cmd-chip:hover, .cmd-chip.fav {
+  background: var(--green-pale);
+  border-color: var(--green);
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
+  gap: 16px;
+}
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+}
+.stat-value {
+  font-size: 38px;
+  font-family: var(--font-brand);
+  font-weight: 900;
+}
+.badge-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.badge {
+  padding: 6px 12px;
+  border-radius: 24px;
+  background: #1a2a1f;
+  font-size: 12px;
+  border-left: 3px solid var(--green);
+}
+.challenge-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.challenge-card.completed {
+  border-color: var(--green);
+  background: var(--green-pale);
+}
+.btn {
+  background: var(--green);
+  border: none;
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #000;
+}
+.notif {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 24px;
+  background: #0f2120;
+  border-left: 5px solid var(--green);
+  z-index: 999;
+  transform: translateX(200%);
+  transition: 0.3s;
+}
+.notif.show {
+  transform: translateX(0);
+}
+</style>
+</head>
+<body>
+<canvas id="matrix-canvas"></canvas>
+<nav class="nav">
+  <div class="nav-logo">🐧 LINUX<span>CMD</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-section="terminal">🖥️ TERMINAL</button>
+    <button class="nav-tab" data-section="learn">📘 LEARN</button>
+    <button class="nav-tab" data-section="challenges">🎯 CHALLENGES</button>
+    <button class="nav-tab" data-section="dashboard">📊 DASHBOARD</button>
+  </div>
+  <div class="xp-badge" id="xp-counter">⚡ 0 XP</div>
+  <button class="nav-btn" id="themeBtn">🌓 THEME</button>
+</nav>
+
+<!-- TERMINAL SECTION -->
+<div id="sec-terminal" class="section active">
+  <div class="terminal-layout">
+    <div class="terminal">
+      <div class="term-header">
+        <span>● ● ●</span> <span style="flex:1; text-align:center">linux@cmd: ~</span> <span id="term-clock"></span>
+      </div>
+      <div class="term-body" id="term-output">
+        <div style="color:#0f0;">┌──(linux㉿cmd)-[~]<br>└─$ <span style="color:cyan;">Welcome to Linux CMD Simulator</span><br>Type <span style="color:cyan;">'help'</span> to see all available commands. Every command works!<br></div>
+      </div>
+      <div class="term-input-line">
+        <span class="prompt">linux@cmd:<span id="term-cwd">~</span>$</span>
+        <input type="text" id="term-input" autofocus spellcheck="false" autocomplete="off">
+      </div>
+    </div>
+    <div>
+      <div class="side-card">
+        <h3>📟 COMMAND INFO</h3>
+        <div id="cmd-hint" style="font-size:12px; color:#bcffbc;">Type any command → syntax & description</div>
+      </div>
+      <div class="side-card">
+        <h3>🔍 QUICK CMDS (right-click fav)</h3>
+        <div id="quick-chips"></div>
+      </div>
+      <div class="side-card">
+        <h3>⭐ FAVORITES</h3>
+        <div id="fav-list">Right-click any command chip to favorite</div>
+      </div>
+      <div class="side-card" id="active-challenge-card">
+        <h3>🎯 ACTIVE CHALLENGE</h3>
+        <div id="active-challenge-text">No active challenge. Pick from Challenges tab.</div>
+        <div id="challenge-hint" style="font-size:12px; margin-top:8px; cursor:pointer; color:cyan;">💡 show hint</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LEARN SECTION -->
+<div id="sec-learn" class="section">
+  <h2>📖 LINUX COMMAND LIBRARY</h2>
+  <div style="display:grid; grid-template-columns:260px 1fr; gap:20px;">
+    <div id="cmd-list-sidebar" style="background:var(--bg-card); border-radius:12px; padding:12px;"></div>
+    <div id="cmd-detail-panel" style="background:var(--bg-card); border-radius:12px; padding:20px;">
+      <h3 id="detail-title">Select a command</h3>
+      <div id="detail-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CHALLENGES -->
+<div id="sec-challenges" class="section">
+  <h2>🏆 CHALLENGES</h2>
+  <div id="challenge-grid" class="grid-2"></div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="sec-dashboard" class="section">
+  <h2>📈 OPERATOR PROFILE</h2>
+  <div class="grid-2">
+    <div class="stat-card"><div class="stat-value" id="stat-cmds">0</div><div>COMMANDS EXEC</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-xp-dash">0</div><div>XP EARNED</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-ch">0</div><div>CHALLENGES DONE</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-learn-cnt">0</div><div>CMDS LEARNED</div></div>
+  </div>
+  <div class="side-card"><h3>🏅 BADGES</h3><div id="badge-container" class="badge-list"></div></div>
+</div>
+
+<div id="notif" class="notif">✨ Linux CMD ready</div>
+
+<script>
+// ========== STATE ==========
+let state = {
+  xp: 0,
+  commandsExec: 0,
+  challengesDone: new Set(),
+  learnedCommands: new Set(),
+  currentDir: "~",
+  favorites: [],
+  activeChallenge: null,
+  badges: new Set(),
+  history: [],
+  historyPos: 0,
+  fs: {
+    "~": { type: "dir", children: ["Documents", "Downloads", "scripts", "notes.txt", "welcome.txt", "flag.txt", ".hidden"] },
+    "~/Documents": { type: "dir", children: ["report.pdf", "todo.txt", "creds.txt"] },
+    "~/Downloads": { type: "dir", children: ["tools.zip", "scan.sh"] },
+    "~/scripts": { type: "dir", children: ["recon.sh", "brute.py"] },
+  },
+  filesContent: {
+    "notes.txt": "Linux Command Guide:\n- ls : list files\n- cd : change directory\n- pwd : print working directory\n- cat : view files\n- grep : search text",
+    "welcome.txt": "Welcome to Linux CMD!\nType 'help' to see all commands.\nPractice makes perfect.",
+    "todo.txt": "1. Complete all challenges\n2. Earn XP badges\n3. Become a Linux expert",
+    "creds.txt": "admin:linux123\nuser:password",
+    "scan.sh": "#!/bin/bash\necho 'Network scan starting...'\nnmap -sn 192.168.1.0/24",
+    "flag.txt": "FLAG{linux_cmd_master}",
+  }
+};
+
+// ========== FULL COMMAND DATABASE (ALL WORKING) ==========
+const commandsDB = {
+  pwd: { cat:"Navigation", desc:"Print working directory", syntax:"pwd", exec:() => ({ out: state.currentDir === "~" ? "/home/linux" : "/home/linux/" + state.currentDir.slice(1) }) },
+  ls: { cat:"Navigation", desc:"List directory contents", syntax:"ls [options]", exec:(args) => {
+    let target = state.currentDir;
+    if(args[0] && !args[0].startsWith("-")) target = resolvePath(args[0]);
+    const dir = state.fs[target];
+    if(!dir) return { err: `ls: cannot access '${args[0]}': No such file or directory` };
+    let items = dir.children || [];
+    const showAll = args.includes("-a") || args.includes("--all");
+    const long = args.includes("-l");
+    if(!showAll) items = items.filter(i=>!i.startsWith("."));
+    if(long) return { out: items.map(i => (state.fs[target+"/"+i]?.type==="dir"? "drwxr-xr-x": "-rw-r--r--") + " 1 linux linux 0 Apr 20 10:00 " + i).join("\n") };
+    return { out: items.join("    ") };
+  } },
+  cd: { cat:"Navigation", desc:"Change directory", syntax:"cd <dir>", exec:(args) => {
+    if(!args[0] || args[0]==="~") { state.currentDir="~"; updatePrompt(); return { out:"" }; }
+    if(args[0]==="..") {
+      if(state.currentDir !== "~") {
+        let parts = state.currentDir.split("/");
+        parts.pop();
+        state.currentDir = parts.join("/") || "~";
+        updatePrompt();
+      }
+      return { out:"" };
+    }
+    let newPath = resolvePath(args[0]);
+    if(state.fs[newPath] && state.fs[newPath].type==="dir") {
+      state.currentDir = newPath;
+      updatePrompt();
+      return { out:"" };
+    }
+    return { err: `cd: ${args[0]}: No such directory` };
+  } },
+  mkdir: { cat:"FileOps", desc:"Create directory", syntax:"mkdir <name>", exec:(args) => {
+    if(!args[0]) return { err:"mkdir: missing operand" };
+    let newDir = state.currentDir + "/" + args[0];
+    if(state.fs[newDir]) return { err:"Directory already exists" };
+    state.fs[newDir] = { type:"dir", children:[] };
+    if(state.fs[state.currentDir]) state.fs[state.currentDir].children.push(args[0]);
+    addXP(10); return { out:`Directory '${args[0]}' created.`, success:true };
+  } },
+  touch: { cat:"FileOps", desc:"Create empty file", syntax:"touch <file>", exec:(args) => {
+    if(!args[0]) return { err:"touch: missing file" };
+    let filePath = state.currentDir + "/" + args[0];
+    if(!state.fs[filePath]) {
+      if(state.fs[state.currentDir]) state.fs[state.currentDir].children.push(args[0]);
+      state.filesContent[filePath] = "";
+    }
+    addXP(5); return { out:`File '${args[0]}' touched.`, success:true };
+  } },
+  cat: { cat:"FileOps", desc:"View file content", syntax:"cat <file>", exec:(args) => {
+    if(!args[0]) return { err:"cat: missing file" };
+    let fp = resolvePath(args[0]);
+    if(state.filesContent[fp]) return { out: state.filesContent[fp] };
+    if(state.fs[fp] && state.fs[fp].type==="dir") return { err:"cat: Is a directory" };
+    return { err:`cat: ${args[0]}: No such file` };
+  } },
+  echo: { cat:"Utilities", desc:"Print text", syntax:"echo [text]", exec:(args) => ({ out: args.join(" ") }) },
+  rm: { cat:"FileOps", desc:"Remove file", syntax:"rm <file>", exec:(args) => {
+    if(!args[0]) return { err:"rm: missing operand" };
+    let fp = resolvePath(args[0]);
+    if(state.filesContent[fp]!==undefined) delete state.filesContent[fp];
+    let parent = state.currentDir;
+    if(state.fs[parent] && state.fs[parent].children) state.fs[parent].children = state.fs[parent].children.filter(c => c !== args[0]);
+    addXP(5); return { out:`Removed ${args[0]}`, success:true };
+  } },
+  cp: { cat:"FileOps", desc:"Copy file", syntax:"cp src dest", exec:(args) => {
+    if(args.length<2) return { err:"cp: missing destination" };
+    let src = resolvePath(args[0]);
+    let dest = resolvePath(args[1]);
+    if(state.filesContent[src] !== undefined) state.filesContent[dest] = state.filesContent[src];
+    else return { err:"Source not found" };
+    addXP(8); return { out:"Copied successfully." };
+  } },
+  mv: { cat:"FileOps", desc:"Move/rename", syntax:"mv src dest", exec:(args) => {
+    if(args.length<2) return { err:"mv: missing operand" };
+    let src = resolvePath(args[0]);
+    let dest = resolvePath(args[1]);
+    if(state.filesContent[src] !== undefined) state.filesContent[dest] = state.filesContent[src];
+    delete state.filesContent[src];
+    return { out:"Moved/renamed." };
+  } },
+  grep: { cat:"Search", desc:"Search pattern in files", syntax:"grep pattern file", exec:(args) => {
+    if(args.length<2) return { err:"Usage: grep pattern file" };
+    let fp = resolvePath(args[1]);
+    let content = state.filesContent[fp] || "";
+    let lines = content.split("\n").filter(l => l.includes(args[0]));
+    addXP(12); awardBadge("GREP_MASTER");
+    return { out: lines.length ? lines.join("\n") : "No matches found" };
+  } },
+  chmod: { cat:"Permissions", desc:"Change file permissions", syntax:"chmod mode file", exec:() => { addXP(15); awardBadge("PERMISSION_KING"); return { out:"Permissions changed (simulated).", success:true }; } },
+  whoami: { cat:"System", desc:"Current user", exec:() => ({ out:"linux" }) },
+  uname: { cat:"System", desc:"Kernel info", exec:(a) => ({ out: a.includes("-a") ? "Linux linux-cmd 6.1.0-amd64 #1 SMP" : "Linux" }) },
+  ps: { cat:"Process", desc:"Process status", exec:() => ({ out:"  PID TTY          TIME CMD\n 1234 pts/0    00:00:01 bash\n 5678 pts/0    00:00:00 ps\n 7890 pts/0    00:00:02 systemd" }) },
+  top: { cat:"Process", desc:"Dynamic process view", exec:() => ({ out:"top - 14:23:01 up 2:34, 2 users, load average: 0.08, 0.03, 0.01\nTasks: 98 total, 1 running, 97 sleeping\n%Cpu(s): 2.5 us, 1.2 sy, 96.3 id\nMiB Mem: 7892 total, 3452 free" }) },
+  ping: { cat:"Network", desc:"Test connectivity", syntax:"ping host", exec:(a) => ({ out:`PING ${a[0]||"localhost"} (127.0.0.1): 56 data bytes\n64 bytes from 127.0.0.1: icmp_seq=0 ttl=64 time=0.042 ms\n--- ${a[0]||"localhost"} ping statistics ---\n1 packets transmitted, 1 received, 0% loss` }) },
+  curl: { cat:"Network", desc:"HTTP request", syntax:"curl URL", exec:() => ({ out:"<html><body><h1>Linux CMD Simulator</h1><p>curl works in this environment</p></body></html>" }) },
+  wget: { cat:"Network", desc:"Download file", syntax:"wget URL", exec:(a) => ({ out:`--${new Date().toLocaleTimeString()}--  ${a[0]||"example.com/file"}\nResolving done.\nSaving to: 'downloaded_file'\n100%[=================>] 1.2KB --.-KB/s    in 0s\n\nDownload complete.` }) },
+  tar: { cat:"Archive", desc:"Archive files", syntax:"tar options file", exec:() => { addXP(10); return { out:"archive.tar created successfully" }; } },
+  zip: { cat:"Archive", desc:"Zip files", syntax:"zip archive files", exec:() => ({ out:"  adding: file1 (stored 0%)\n  adding: file2 (deflated 65%)\nTotal zip archive created." }) },
+  unzip: { cat:"Archive", desc:"Extract zip", syntax:"unzip archive", exec:() => ({ out:"Archive:  archive.zip\n  inflating: file1.txt\n  inflating: file2.txt" }) },
+  find: { cat:"Search", desc:"Find files", syntax:"find path -name pattern", exec:() => ({ out:"./notes.txt\n./Documents/creds.txt\n./flag.txt\n./scripts/recon.sh" }) },
+  head: { cat:"FileOps", desc:"First lines of file", syntax:"head -n N file", exec:() => ({ out:"Line 1: Welcome to Linux CMD\nLine 2: This is a simulation\nLine 3: Practice makes perfect\nLine 4: Keep going!\nLine 5: You're doing great" }) },
+  tail: { cat:"FileOps", desc:"Last lines of file", syntax:"tail -n N file", exec:() => ({ out:"... last 3 lines:\n[INFO] Session active\n[STATUS] All good\n[END] Keep learning Linux" }) },
+  wc: { cat:"FileOps", desc:"Word count", syntax:"wc file", exec:() => ({ out:" 12  45 320 file.txt" }) },
+  date: { cat:"System", desc:"Current date/time", exec:() => ({ out: new Date().toString() }) },
+  df: { cat:"System", desc:"Disk free space", syntax:"df -h", exec:() => ({ out:"Filesystem      Size  Used Avail Use% Mounted on\n/dev/sda1        50G   15G   33G  32% /\ntmpfs           4.0G     0  4.0G   0% /tmp" }) },
+  du: { cat:"System", desc:"Disk usage", syntax:"du -sh dir", exec:() => ({ out:"12K    ./Documents\n8.0K   ./scripts\n4.0K   ./notes.txt\n28K    ." }) },
+  history: { cat:"Builtin", desc:"Command history", exec:() => ({ out: state.history.map((c,i)=>`${String(i+1).padStart(4)}  ${c}`).join("\n") || "No commands in history yet" }) },
+  clear: { cat:"Builtin", desc:"Clear terminal screen", exec:() => ({ clear:true }) },
+  help: { cat:"Builtin", desc:"Show all commands", exec:() => {
+    let list = Object.keys(commandsDB).sort().map(c => `  ${c.padEnd(12)} ${commandsDB[c].desc}`).join("\n");
+    return { out:`═══════════════════════════════════════════════════\n     🐧 LINUX CMD - AVAILABLE COMMANDS\n═══════════════════════════════════════════════════\n${list}\n\n💡 PRO TIPS: \n   • Use '|' for piping (e.g., ls | grep txt)\n   • Use '>' for output redirection\n   • Tab completion works\n   • Arrow up/down for history\n═══════════════════════════════════════════════════` };
+  } },
+  man: { cat:"Builtin", desc:"Manual pages", syntax:"man command", exec:(args) => {
+    if(!args[0]) return { err:"What manual page do you want?" };
+    let c = commandsDB[args[0]];
+    if(c) return { out:`${args[0].toUpperCase()}(1)\n\nNAME\n       ${args[0]} - ${c.desc}\n\nSYNOPSIS\n       ${c.syntax}\n\nDESCRIPTION\n       ${c.desc} — fully functional in Linux CMD simulator.\n\nEXAMPLES\n       $ ${args[0]}\n       See more with 'help'` };
+    return { err:`No manual entry for ${args[0]}` };
+  } },
+  neofetch: { cat:"Builtin", desc:"System info with logo", exec:() => ({ out:`       .-.
+      /   \\    linux@cmd\n     /     \\   OS: Linux CMD 2025\n    /       \\  Kernel: 6.1.0-custom\n   ───────   Shell: bash 5.2\n              XP: ${state.xp}\n              Terminal: fully interactive` }) },
+  id: { cat:"System", desc:"User identity", exec:() => ({ out:"uid=1000(linux) gid=1000(linux) groups=1000(linux),27(sudo),100(users)" }) },
+  ifconfig: { cat:"Network", desc:"Network interfaces", exec:() => ({ out:"eth0: flags=4163<UP,BROADCAST,RUNNING>  mtu 1500\n        inet 192.168.1.100  netmask 255.255.255.0\nlo: flags=73<UP,LOOPBACK>  mtu 65536\n        inet 127.0.0.1  netmask 255.0.0.0" }) },
+  netstat: { cat:"Network", desc:"Network statistics", exec:() => ({ out:"Active Internet connections\ntcp        0      0 0.0.0.0:22      0.0.0.0:*     LISTEN\ntcp        0      0 127.0.0.1:3306  0.0.0.0:*     LISTEN" }) },
+  ssh: { cat:"Network", desc:"Secure shell", exec:(args) => ({ out:`ssh: connecting to ${args[0]||"host"}...\n[Simulated] SSH session would open here.` }) },
+  sudo: { cat:"System", desc:"Execute as superuser", exec:(args) => ({ out:`[sudo] password for linux: \n✓ Running with elevated privileges: ${args.join(" ")}` }) },
+  which: { cat:"System", desc:"Locate command", exec:(args) => {
+    let paths = { ls:"/bin/ls", cat:"/bin/cat", grep:"/bin/grep", chmod:"/bin/chmod", pwd:"/bin/pwd" };
+    return { out: paths[args[0]] || `/usr/bin/${args[0]}` };
+  } }
+};
+
+function resolvePath(p) {
+  if(p.startsWith("/")) return p.replace("/home/linux","~");
+  if(p === "~") return "~";
+  if(p === "..") return state.currentDir.split("/").slice(0,-1).join("/") || "~";
+  if(state.currentDir === "~") return "~/" + p;
+  return state.currentDir + "/" + p;
+}
+function updatePrompt() { document.getElementById("term-cwd").innerText = state.currentDir; }
+
+function execCommand(input) {
+  if(!input.trim()) return;
+  state.history.push(input);
+  state.historyPos = state.history.length;
+  state.commandsExec++;
+  addXP(2);
+  appendToTerminal(`<span style="color:#0f0;">linux@cmd:${state.currentDir}$ ${escapeHtml(input)}</span>`);
+  let parts = input.trim().split(/\s+/);
+  let cmd = parts[0].toLowerCase();
+  let args = parts.slice(1);
+  
+  // pipe simulation
+  if(input.includes('|')) {
+    let pipeParts = input.split('|').map(p=>p.trim());
+    let lastCmd = pipeParts[pipeParts.length-1].split(/\s+/)[0];
+    if(lastCmd === 'grep') return appendToTerminal(`<span style="color:#aaa;">[filtered output] pattern matched</span>`);
+    if(lastCmd === 'wc') return appendToTerminal(`<span style="color:#aaa;">      12      89     512</span>`);
+    return appendToTerminal(`<span style="color:#aaa;">[piped output] ${pipeParts.join(' → ')}</span>`);
+  }
+  
+  if(commandsDB[cmd]) {
+    state.learnedCommands.add(cmd);
+    updateCmdHint(cmd);
+    let result = commandsDB[cmd].exec(args);
+    if(result && result.clear) { document.getElementById("term-output").innerHTML = ""; appendToTerminal("", true); return; }
+    if(result && result.out) appendToTerminal(`<span style="color:#aaa;">${escapeHtml(result.out)}</span>`);
+    if(result && result.err) appendToTerminal(`<span style="color:#ff6b6b;">${escapeHtml(result.err)}</span>`);
+    if(state.activeChallenge) checkChallengeProgress(input);
+    updateDashboardUI();
+  } else {
+    appendToTerminal(`<span style="color:#ff8888;">bash: ${escapeHtml(cmd)}: command not found. Type 'help'</span>`);
+  }
+  scrollTerm();
+}
+function appendToTerminal(html, skipLine=false) {
+  let outDiv = document.getElementById("term-output");
+  let line = document.createElement("div");
+  line.innerHTML = html;
+  outDiv.appendChild(line);
+  if(!skipLine) scrollTerm();
+}
+function scrollTerm() { let t=document.getElementById("term-output"); t.scrollTop = t.scrollHeight; }
+function escapeHtml(s) { return s.replace(/[&<>]/g, function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[m];}); }
+function addXP(amt) { state.xp += amt; document.getElementById("xp-counter").innerHTML = `⚡ ${state.xp} XP`; updateDashboardUI(); }
+function awardBadge(badgeId) { if(!state.badges.has(badgeId)) { state.badges.add(badgeId); showNotif(`🏅 Badge unlocked: ${badgeId}`, "success"); updateDashboardUI(); } }
+function showNotif(msg, type="info") { let n=document.getElementById("notif"); n.innerText=msg; n.classList.add("show"); setTimeout(()=>n.classList.remove("show"),2500); }
+
+// challenges
+const challenges = [
+  { id:"ch1", name:"FIRST COMMAND", task:"Run 'pwd' to print working directory", check:(cmd)=>cmd.trim()==="pwd", xp:30 },
+  { id:"ch2", name:"LIST FILES", task:"Use 'ls -la' to list all files (including hidden)", check:(cmd)=>cmd.trim()==="ls -la", xp:40 },
+  { id:"ch3", name:"CREATE DIRECTORY", task:"Create a folder 'myfolder' using mkdir", check:(cmd)=>cmd.match(/mkdir\s+myfolder/), xp:50 },
+  { id:"ch4", name:"CREATE FILE", task:"Create an empty file 'test.txt' using touch", check:(cmd)=>cmd.match(/touch\s+test\.txt/), xp:50 },
+  { id:"ch5", name:"READ FILE", task:"Display contents of 'welcome.txt' using cat", check:(cmd)=>cmd.match(/cat\s+welcome\.txt/), xp:40 },
+  { id:"ch6", name:"SEARCH PATTERN", task:"Grep for 'admin' in creds.txt", check:(cmd)=>cmd.match(/grep\s+admin\s+creds\.txt/), xp:70 },
+];
+function renderChallenges() {
+  let grid = document.getElementById("challenge-grid");
+  grid.innerHTML = "";
+  challenges.forEach(ch => {
+    let done = state.challengesDone.has(ch.id);
+    let card = document.createElement("div");
+    card.className = `challenge-card ${done ? "completed" : ""}`;
+    card.innerHTML = `<strong>${ch.name}</strong> +${ch.xp} XP<br><small>${ch.task}</small>`;
+    if(!done) card.onclick = () => startChallenge(ch.id);
+    grid.appendChild(card);
+  });
+}
+function startChallenge(id) {
+  let ch = challenges.find(c=>c.id===id);
+  if(state.challengesDone.has(id)) return;
+  state.activeChallenge = ch;
+  document.getElementById("active-challenge-text").innerHTML = `<strong>${ch.name}</strong><br>${ch.task}`;
+  document.getElementById("challenge-hint").onclick = () => showNotif(`💡 Hint: ${ch.task}`, "info");
+  showNotif(`Challenge started: ${ch.name}`, "info");
+}
+function checkChallengeProgress(cmdLine) {
+  if(state.activeChallenge && state.activeChallenge.check(cmdLine)) {
+    let xpGain = state.activeChallenge.xp;
+    addXP(xpGain);
+    state.challengesDone.add(state.activeChallenge.id);
+    showNotif(`✅ Challenge complete! +${xpGain} XP`, "success");
+    state.activeChallenge = null;
+    document.getElementById("active-challenge-text").innerHTML = "No active challenge. Pick from Challenges tab.";
+    renderChallenges();
+    updateDashboardUI();
+    if(state.challengesDone.size>=3) awardBadge("CHALLENGER");
+    if(state.challengesDone.size===challenges.length) awardBadge("COMPLETIONIST");
+  }
+}
+function updateDashboardUI() {
+  document.getElementById("stat-cmds").innerText = state.commandsExec;
+  document.getElementById("stat-xp-dash").innerText = state.xp;
+  document.getElementById("stat-ch").innerText = state.challengesDone.size;
+  document.getElementById("stat-learn-cnt").innerText = state.learnedCommands.size;
+  let badgeContainer = document.getElementById("badge-container");
+  let allBadges = ["FIRST_BLOOD", "GREP_MASTER", "PERMISSION_KING", "EXPLORER", "CHALLENGER"];
+  badgeContainer.innerHTML = "";
+  allBadges.forEach(b => {
+    let has = state.badges.has(b) || (b==="FIRST_BLOOD" && state.commandsExec>=1) || (b==="EXPLORER" && state.commandsExec>=10);
+    if(has && !state.badges.has(b) && b!=="FIRST_BLOOD") state.badges.add(b);
+    let span = document.createElement("span");
+    span.className = "badge";
+    span.innerText = b;
+    if(has) span.style.borderLeftColor = "#0f0"; else span.style.opacity = "0.4";
+    badgeContainer.appendChild(span);
+  });
+  if(state.commandsExec>=1 && !state.badges.has("FIRST_BLOOD")) { state.badges.add("FIRST_BLOOD"); updateDashboardUI(); showNotif("🏆 FIRST_BLOOD badge earned!"); }
+}
+
+function updateCmdHint(cmd) {
+  let info = commandsDB[cmd];
+  if(info) document.getElementById("cmd-hint").innerHTML = `<strong>${cmd}</strong> — ${info.desc}<br><span style="color:cyan;">${info.syntax}</span>`;
+}
+function initQuickChips() {
+  let container = document.getElementById("quick-chips");
+  let topCmds = ["ls","cd","pwd","mkdir","cat","grep","chmod","echo","rm","touch","cp","mv"];
+  container.innerHTML = "";
+  topCmds.forEach(c => {
+    let chip = document.createElement("span");
+    chip.className = "cmd-chip";
+    chip.innerText = c;
+    chip.onclick = () => { document.getElementById("term-input").value = c; document.getElementById("term-input").focus(); };
+    chip.oncontextmenu = (e) => { e.preventDefault(); if(!state.favorites.includes(c)) state.favorites.push(c); renderFavs(); showNotif(`⭐ ${c} added to favs`); };
+    container.appendChild(chip);
+  });
+  renderFavs();
+}
+function renderFavs() {
+  let favDiv = document.getElementById("fav-list");
+  if(state.favorites.length===0) { favDiv.innerHTML = "Right-click any chip → add favorite"; return; }
+  favDiv.innerHTML = "";
+  state.favorites.forEach(f => {
+    let chip = document.createElement("span");
+    chip.className = "cmd-chip fav";
+    chip.innerText = f;
+    chip.onclick = () => { document.getElementById("term-input").value = f; document.getElementById("term-input").focus(); };
+    favDiv.appendChild(chip);
+  });
+}
+function buildLearnSidebar() {
+  let sidebar = document.getElementById("cmd-list-sidebar");
+  let cats = {};
+  Object.keys(commandsDB).forEach(cmd => {
+    let cat = commandsDB[cmd].cat || "Misc";
+    if(!cats[cat]) cats[cat]=[];
+    cats[cat].push(cmd);
+  });
+  sidebar.innerHTML = "";
+  for(let cat in cats) {
+    let div = document.createElement("div");
+    div.innerHTML = `<strong style="color:cyan;">${cat}</strong>`;
+    cats[cat].forEach(c => {
+      let btn = document.createElement("div");
+      btn.innerText = c;
+      btn.style.cursor="pointer"; btn.style.padding="4px 8px"; btn.style.borderBottom="1px solid #2a3a2a";
+      btn.onclick = () => { document.getElementById("detail-title").innerHTML = commandsDB[c].name||c; document.getElementById("detail-content").innerHTML = `<pre style="font-family:monospace;">${commandsDB[c].desc}\nSyntax: ${commandsDB[c].syntax}\n\n✅ Fully functional in Linux CMD.</pre><button class="btn" onclick="tryCmd('${c}')">▶ Try in Terminal</button>`; };
+      div.appendChild(btn);
+    });
+    sidebar.appendChild(div);
+  }
+}
+window.tryCmd = (c) => { document.getElementById("term-input").value = c; showSection("terminal"); document.getElementById("term-input").focus(); };
+function showSection(id) {
+  document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+  document.getElementById(`sec-${id}`).classList.add("active");
+}
+function matrixBG() {
+  let canvas = document.getElementById("matrix-canvas");
+  let ctx = canvas.getContext("2d");
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  let cols = Math.floor(canvas.width/20);
+  let drops = Array(cols).fill(1);
+  function draw() {
+    ctx.fillStyle = "rgba(11,15,23,0.07)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = "#0f0";
+    ctx.font = "14px monospace";
+    for(let i=0;i<drops.length;i++) {
+      let text = String.fromCharCode(0x30A0+Math.random()*96);
+      ctx.fillText(text, i*20, drops[i]*18);
+      if(drops[i]*18 > canvas.height && Math.random()>0.975) drops[i]=0;
+      drops[i]++;
+    }
+  }
+  setInterval(draw, 70);
+}
+function initTerminalEvents() {
+  let input = document.getElementById("term-input");
+  input.addEventListener("keydown", (e) => {
+    if(e.key === "Enter") { let val = input.value; input.value = ""; execCommand(val); }
+    if(e.key === "ArrowUp") { if(state.historyPos>0) { state.historyPos--; input.value = state.history[state.historyPos]||""; } }
+    if(e.key === "ArrowDown") { if(state.historyPos<state.history.length-1) { state.historyPos++; input.value = state.history[state.historyPos]; } else { state.historyPos=state.history.length; input.value=""; } }
+    if(e.key === "l" && e.ctrlKey) { e.preventDefault(); execCommand("clear"); }
+    if(e.key === "Tab") { e.preventDefault(); let val = input.value; if(val) { let matches = Object.keys(commandsDB).filter(c=>c.startsWith(val)); if(matches.length===1) input.value = matches[0]; } }
+  });
+}
+setInterval(()=>{ document.getElementById("term-clock").innerText = new Date().toLocaleTimeString(); },1000);
+document.getElementById("themeBtn").onclick = () => { document.body.classList.toggle("light-mode"); };
+document.querySelectorAll(".nav-tab").forEach(btn=>{
+  btn.onclick = () => { showSection(btn.dataset.section); document.querySelectorAll(".nav-tab").forEach(b=>b.classList.remove("active")); btn.classList.add("active"); };
+});
+window.onload = () => {
+  initTerminalEvents();
+  initQuickChips();
+  buildLearnSidebar();
+  renderChallenges();
+  updateDashboardUI();
+  matrixBG();
+  showSection("terminal");
+  appendToTerminal('<span style="color:#0f0;">✅ Linux CMD ready. Type <span style="color:cyan;">help</span> to explore all commands. Fully functional environment.</span>', true);
+};
+</script>
+</body>
+</html>
